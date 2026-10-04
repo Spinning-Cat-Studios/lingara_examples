@@ -1,0 +1,122 @@
+name: Release
+
+# On a version tag, in staging and in the public repository alike
+# (ADR 4.10.26b D6). The same `check` and `examples` jobs as ci.yml, with the
+# VERSION check in `check` so it gates both later jobs, then the Release.
+#
+# Staging's run is the build of the shipped tree, and a gate, not a courtesy:
+# scs-snapshot's `verify` refuses promotion unless this workflow (by name)
+# succeeded on the tag and its Release exists and is not a draft. The public
+# repository runs it again on the promoted tag, for its own Release page.
+# No assets, no registry, no secret but GITHUB_TOKEN.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  check:
+    name: Index, dependencies, checker
+    runs-on: ubuntu-latest
+    outputs:
+      examples: ${{ steps.matrix.outputs.examples }}
+      count: ${{ steps.matrix.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: The tag is v$(cat VERSION)
+        run: test "v$(cat VERSION)" = "$TAG" || { echo "✗ VERSION says v$(cat VERSION); the tag is $TAG"; exit 1; }
+      - run: make check-publishable
+      # `include` alone: every other matrix key must be an array.
+      - id: matrix
+        name: The example matrix
+        run: |
+          json=$(target/release/lingara-examples-check list --json)
+          echo "examples=$(jq -c '{include}' <<<"$json")" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq .count <<<"$json")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: examples-check
+          path: target/release/lingara-examples-check
+
+  examples:
+    name: ${{ matrix.path }}
+    needs: check
+    if: needs.check.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.check.outputs.examples) }}
+    env:
+      DIR: ${{ matrix.path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: examples-check
+          path: ${{ runner.temp }}/bin
+      - name: The checker, as downloaded
+        run: |
+          chmod +x "$RUNNER_TEMP/bin/lingara-examples-check"
+          echo "EXAMPLES_CHECK=$RUNNER_TEMP/bin/lingara-examples-check" >> "$GITHUB_ENV"
+      - if: matrix.language == 'typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ matrix.path }}/.node-version
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+      - if: matrix.language == 'php'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+      - run: make build-example test-example DIR="$DIR"
+
+  # A plain `needs` would skip this behind a skipped `examples` (no rows).
+  github-release:
+    name: GitHub Release
+    needs: [check, examples]
+    if: ${{ !cancelled() && needs.check.result == 'success' && (needs.examples.result == 'success' || needs.examples.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      # A published release is immutable, so a re-run never repairs one: it
+      # accepts a finished release and refuses a draft by name.
+      - id: existing
+        name: An existing release is finished, or the job stops
+        run: |
+          if ! gh release view "$TAG" --json isDraft > "$RUNNER_TEMP/state.json" 2>/dev/null; then
+            echo "published=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if jq -e '.isDraft == false' "$RUNNER_TEMP/state.json" >/dev/null; then
+            echo "✓ $TAG is already published"
+            echo "published=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "✗ a draft release for $TAG exists; publish or delete it by hand"
+          exit 1
+      # The body is the tagged commit's message body: in public, the
+      # production note promotion wrote; in staging, the publish commit's.
+      # The cat-file line drops the object headers, then the subject paragraph.
+      - if: steps.existing.outputs.published == 'false'
+        name: Create the release
+        run: |
+          set -euo pipefail
+          git cat-file commit "$GITHUB_SHA" | sed '1,/^$/d' | sed '1,/^$/d' > "$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md" || { echo "✗ the release notes for $TAG are empty"; exit 1; }
+          flags=(--verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md")
+          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" "${flags[@]}"

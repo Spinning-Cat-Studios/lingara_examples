@@ -1,0 +1,23 @@
+{
+  "name": "lingara-luba-dive-log",
+  "private": true,
+  "description": "Luba's Dive Log: a Lingara app on the shelf, end to end — manifest, listing, install consent and the card relay.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "manifest": "node src/manifest.ts",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@lingara/api": "0.1.0-alpha.10",
+    "@lingara/apps": "0.1.0-alpha.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

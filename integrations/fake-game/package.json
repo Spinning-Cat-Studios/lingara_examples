@@ -1,0 +1,21 @@
+{
+  "name": "lingara-fake-game",
+  "private": true,
+  "description": "A headless fake game that talks to Lingara's events: the feed, sendEvent and a webhook receiver.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test src/main.test.ts"
+  },
+  "dependencies": {
+    "@lingara/api": "0.1.0-alpha.10"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

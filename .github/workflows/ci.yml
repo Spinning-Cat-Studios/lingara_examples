@@ -1,0 +1,81 @@
+name: CI
+
+# Every push and pull request (ADR 4.10.26b D6). Public: no secrets and no
+# submodules, so a fork's pull request runs it as it stands.
+#
+# `check` builds the checker once and hands it to every example leg, so no
+# leg compiles it or needs Rust. With no rows the matrix is empty, which is an
+# error in GitHub Actions, so `examples` is skipped on count 0.
+#
+# A matrix value reaches make through env, never inline: the leak scan reads
+# every token after `make ` in a shipped workflow as a target, and DIR="$DIR"
+# is one token with an `=`, which it skips.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Index, dependencies, checker
+    runs-on: ubuntu-latest
+    outputs:
+      examples: ${{ steps.matrix.outputs.examples }}
+      count: ${{ steps.matrix.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: make check-publishable
+      # `include` alone: every other matrix key must be an array.
+      - id: matrix
+        name: The example matrix
+        run: |
+          json=$(target/release/lingara-examples-check list --json)
+          echo "examples=$(jq -c '{include}' <<<"$json")" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq .count <<<"$json")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: examples-check
+          path: target/release/lingara-examples-check
+
+  examples:
+    name: ${{ matrix.path }}
+    needs: check
+    if: needs.check.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.check.outputs.examples) }}
+    env:
+      DIR: ${{ matrix.path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: examples-check
+          path: ${{ runner.temp }}/bin
+      - name: The checker, as downloaded
+        run: |
+          chmod +x "$RUNNER_TEMP/bin/lingara-examples-check"
+          echo "EXAMPLES_CHECK=$RUNNER_TEMP/bin/lingara-examples-check" >> "$GITHUB_ENV"
+      - if: matrix.language == 'typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ matrix.path }}/.node-version
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+      - if: matrix.language == 'php'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+      - run: make build-example test-example DIR="$DIR"

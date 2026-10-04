@@ -1,0 +1,5 @@
+# The public metadata endpoints `lingara-examples-check outdated` asks
+# (ADR 4.10.26b D4). A file, so the tests point the same code at a fixture.
+npm       = "https://registry.npmjs.org"
+go        = "https://proxy.golang.org"
+packagist = "https://repo.packagist.org"
