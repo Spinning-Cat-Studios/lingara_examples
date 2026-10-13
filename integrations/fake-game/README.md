@@ -39,10 +39,15 @@ It prints one line per step:
    `reaction.plan_id`, skipping every other event.
 
 Only `reaction.status: started` with `plan_status: generating` promises an
-event. Any other reaction ends the run with a line and a non-zero exit. A
-plan served from the pool is readable at once and no event is promised, so
-pick a scene Lingara cannot already serve: the same scene on a second day is
-usually served from the pool.
+event. A plan served from Lingara's pool arrives as `plan_status: complete`:
+it is readable at once and no event follows, so the run ends there with a
+line and a zero exit. Lingara matches scenes by meaning, not by text, so a
+scene close to one this client has asked for before (the same scene with a
+new date, say) is usually served from the pool. Any other reaction ends the
+run with a line and a non-zero exit. With `--require-event` a pool hit fails
+too: the daily live job passes it, because it exists to see a plan generated
+and its `lesson_plan.ready` delivered, and Lingara skips the pool for that
+job's account.
 
 ## The receiver
 

@@ -1,13 +1,20 @@
 //! `bump` (ADR 4.10.26b D4, D7): one package's version, written into every
 //! row that lists it and into each of those examples' manifests. Each edit
 //! replaces the one version string, so a bump PR's diff is exactly the version
-//! lines. Lock files are the language recipe's (`lock-example-<language>`).
+//! lines. The README's table shows each row's versions, so it is regenerated
+//! too; without that, every bump PR fails the `index` check. Lock files are
+//! the language recipe's (`lock-example-<language>`). A Cargo example has a
+//! manifest per package, and each that declares the package is written
+//! (ADR 13.10.26h D5). A Gradle example's manifest is its version catalogue
+//! (ADR 13.10.26i D5).
 
 use crate::deps::Ecosystem;
-use crate::index::{INDEX_FILE, Registry};
+use crate::index::{self, INDEX_FILE, README, Registry};
 use std::fs;
 use std::path::Path;
-use toml_edit::{DocumentMut, Item, Value};
+use toml_edit::{DocumentMut, Item, TableLike, Value};
+
+const CARGO_DEP_TABLES: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
 
 /// Writes the new version and returns the paths it touched.
 pub fn run(root: &Path, registry: Registry, name: &str, version: &str) -> Result<Vec<String>, String> {
@@ -15,17 +22,31 @@ pub fn run(root: &Path, registry: Registry, name: &str, version: &str) -> Result
     let (bumped, rows) = bump_index(&text, registry, name, version)?;
     let mut touched = Vec::new();
     write_if_changed(root, INDEX_FILE, &text, &bumped, &mut touched)?;
+    regenerate_readme(root, &mut touched)?;
     for (path, language) in rows {
         let ecosystem = Ecosystem::for_language(&language).ok_or_else(|| format!("{path}: no manifest writer for `{language}`"))?;
-        let manifest = format!("{path}/{}", ecosystem.manifest());
-        let before = read(root, &manifest)?;
-        let after = match ecosystem {
-            Ecosystem::Npm | Ecosystem::Composer => replace_json_dep(&before, name, version),
-            Ecosystem::Go => replace_go_require(&before, name, version),
-        };
-        write_if_changed(root, &manifest, &before, &after, &mut touched)?;
+        for rel in ecosystem.manifests(&root.join(&path)) {
+            let manifest = format!("{path}/{rel}");
+            let before = read(root, &manifest)?;
+            let after = match ecosystem {
+                Ecosystem::Npm | Ecosystem::Composer => replace_json_dep(&before, name, version),
+                Ecosystem::Go => replace_go_require(&before, name, version),
+                Ecosystem::Cargo => replace_cargo_dep(&before, name, version).map_err(|e| format!("{manifest}: {e}"))?,
+                Ecosystem::Gradle => replace_catalogue_version(&before, name, version).map_err(|e| format!("{manifest}: {e}"))?,
+            };
+            write_if_changed(root, &manifest, &before, &after, &mut touched)?;
+        }
     }
     Ok(touched)
+}
+
+/// The README's table from the index just written.
+fn regenerate_readme(root: &Path, touched: &mut Vec<String>) -> Result<(), String> {
+    let index = index::load(root).map_err(|f| f.to_string())?;
+    let before = read(root, README)?;
+    let after = index::splice_readme_table(&before, &crate::list::markdown(&index))
+        .ok_or_else(|| format!("{README}: no examples markers"))?;
+    write_if_changed(root, README, &before, &after, touched)
 }
 
 fn read(root: &Path, rel: &str) -> Result<String, String> {
@@ -116,4 +137,49 @@ pub(crate) fn replace_go_require(text: &str, module: &str, version: &str) -> Str
             format!("{}{}{}", &line[..at], version, &line[at + old.len()..])
         })
         .collect()
+}
+
+/// `<crate> = "=<old>"`, or the `version` of a table form, set to
+/// `"=<version>"` in every dependency table, top level and per target. The
+/// `=` is kept: the reader refuses a Lingara crate pinned without one.
+pub(crate) fn replace_cargo_dep(text: &str, name: &str, version: &str) -> Result<String, String> {
+    let mut doc: DocumentMut = text.parse().map_err(|e: toml_edit::TomlError| e.message().to_string())?;
+    let pinned = format!("={version}");
+    let root = doc.as_table_mut();
+    set_cargo_dep(root, name, &pinned);
+    if let Some(targets) = root.get_mut("target").and_then(Item::as_table_like_mut) {
+        for (_, target) in targets.iter_mut() {
+            if let Some(target) = target.as_table_like_mut() {
+                set_cargo_dep(target, name, &pinned);
+            }
+        }
+    }
+    Ok(doc.to_string())
+}
+
+/// `[versions].<artifact id>` of a Gradle version catalogue, and nothing
+/// else (ADR 13.10.26i D5). Each `com.getlingara` artefact has its own key,
+/// so a bump of one moves one pin; `lock-example-kotlin` relocks the rest.
+pub(crate) fn replace_catalogue_version(text: &str, name: &str, version: &str) -> Result<String, String> {
+    let mut doc: DocumentMut = text.parse().map_err(|e: toml_edit::TomlError| e.message().to_string())?;
+    let artifact = name.rsplit_once(':').map_or(name, |(_, a)| a);
+    if let Some(value) = doc.get_mut("versions").and_then(Item::as_table_like_mut).and_then(|t| t.get_mut(artifact)).and_then(Item::as_value_mut) {
+        set_keeping_decor(value, version);
+    }
+    Ok(doc.to_string())
+}
+
+fn set_cargo_dep(parent: &mut dyn TableLike, name: &str, pinned: &str) {
+    for table in CARGO_DEP_TABLES {
+        let Some(item) = parent.get_mut(table).and_then(Item::as_table_like_mut).and_then(|deps| deps.get_mut(name)) else { continue };
+        let version = match item {
+            Item::Value(Value::String(_)) => item.as_value_mut(),
+            Item::Value(Value::InlineTable(t)) => t.get_mut("version"),
+            Item::Table(t) => t.get_mut("version").and_then(Item::as_value_mut),
+            _ => None,
+        };
+        if let Some(value) = version {
+            set_keeping_decor(value, pinned);
+        }
+    }
 }

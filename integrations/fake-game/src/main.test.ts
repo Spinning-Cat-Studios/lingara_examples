@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createHmac, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 
 import { clientFromEnv, runGame, SCOPES } from "./main.ts";
 import { receive } from "./receiver.ts";
@@ -49,7 +49,9 @@ const routes: Record<string, Reply> = {
     }),
 };
 
-test("the game side, offline", async (t) => {
+/** The stub Lingara over `routes` (with `overrides` on top), and the client that talks to it. */
+async function stubbed(t: TestContext, overrides: Record<string, Reply> = {}) {
+  const table = { ...routes, ...overrides };
   const tokenForms: URLSearchParams[] = [];
   const stub = createServer((req, res) => {
     let body = "";
@@ -57,7 +59,7 @@ test("the game side, offline", async (t) => {
     req.on("end", () => {
       const key = `${req.method} ${req.url}`;
       if (key === "POST /oauth/token") tokenForms.push(new URLSearchParams(body));
-      const reply = routes[key];
+      const reply = table[key];
       if (reply) reply(req, body, res);
       else json(res, 404, { error: `the stub has no ${key}` });
     });
@@ -72,9 +74,15 @@ test("the game side, offline", async (t) => {
     LINGARA_BASE_URL: base,
     LINGARA_TOKEN_URL: `${base}/oauth/token`,
   });
+  return { client, tokenForms };
+}
+
+const SCENE = { scene: "A night market after rain", sourceLang: "en", targetLang: "zh", level: 2 };
+
+test("the game side, offline", async (t) => {
+  const { client, tokenForms } = await stubbed(t);
   const lines: string[] = [];
-  const scene = { scene: "A night market after rain", sourceLang: "en", targetLang: "zh", level: 2 };
-  const code = await runGame(client, scene, (line) => lines.push(line));
+  const code = await runGame(client, SCENE, (line) => lines.push(line));
 
   assert.equal(tokenForms.length, 1);
   assert.deepEqual(tokenForms[0]?.get("scope")?.split(" ").sort(), [...SCOPES].sort());
@@ -84,6 +92,60 @@ test("the game side, offline", async (t) => {
     `feed: lesson_plan.ready lgr_evt_ready plan=${PLAN_ID}`,
   ]);
   assert.equal(code, 0);
+});
+
+test("a plan served from the pool is a success with nothing to wait for", async (t) => {
+  const { client } = await stubbed(t, {
+    "POST /v1/events": (_req, _body, res) =>
+      json(res, 202, {
+        id: "lgr_evt_sent",
+        type: "world.context_changed",
+        created_at: "2026-10-05T08:04:50Z",
+        reaction: { status: "started", plan_id: PLAN_ID, plan_status: "complete" },
+      }),
+    // The feed is never read past the horizon: a read would mean the game waited.
+    "GET /v1/events?cursor=h0": (_req, _body, res) => json(res, 500, { error: "the game should not wait" }),
+  });
+  const lines: string[] = [];
+  const code = await runGame(client, SCENE, (line) => lines.push(line));
+
+  assert.deepEqual(lines, [
+    "feed: horizon cursor h0",
+    "sent: world.context_changed lgr_evt_sent reaction=started",
+    `plan ${PLAN_ID} was served from the pool (complete), no event promised`,
+  ]);
+  assert.equal(code, 0);
+});
+
+// 6.10.26k AC6
+test("require-event refuses a plan served from the pool", async (t) => {
+  const served = {
+    "POST /v1/events": ((_req, _body, res) =>
+      json(res, 202, {
+        id: "lgr_evt_sent",
+        type: "world.context_changed",
+        created_at: "2026-10-06T08:04:50Z",
+        reaction: { status: "started", plan_id: PLAN_ID, plan_status: "complete" },
+      })) as Reply,
+    // The feed is never read past the horizon, with or without the flag.
+    "GET /v1/events?cursor=h0": ((_req, _body, res) => json(res, 500, { error: "the game should not wait" })) as Reply,
+  };
+
+  const lenient = await stubbed(t, served);
+  assert.equal(await runGame(lenient.client, SCENE, () => {}), 0);
+
+  const strict = await stubbed(t, served);
+  const lines: string[] = [];
+  assert.equal(await runGame(strict.client, SCENE, (line) => lines.push(line), false, true), 1);
+  assert.equal(
+    lines.at(-1),
+    `plan ${PLAN_ID} was served from the pool (complete); --require-event wants a generation`,
+  );
+
+  const generating = await stubbed(t);
+  const ready: string[] = [];
+  assert.equal(await runGame(generating.client, SCENE, (line) => ready.push(line), false, true), 0);
+  assert.equal(ready.at(-1), `feed: lesson_plan.ready lgr_evt_ready plan=${PLAN_ID}`);
 });
 
 /** Standard Webhooks: HMAC-SHA256 over `id.timestamp.body`, keyed with the secret's base64 bytes. */

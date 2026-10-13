@@ -5,8 +5,9 @@ at the version `go.mod` requires.
 **Scopes:** `vocab:generate` (the dispatch server) and `usage:read` (the ops
 dashboard).
 
-Luba runs dive trips. Before each dive, the boat's cabin screens teach the
-divers a few words in the language of the place they are diving. Two of her
+Luba runs autonomous submarines as a transport and ride-share service. Before
+each trip, the cabin screens teach the passengers a few words in the language
+of the place they are heading. Two of her
 processes talk to Lingara, and each asks for **only the scope it needs**:
 
 | Command | Scope it asks for | What it calls | What it prints |

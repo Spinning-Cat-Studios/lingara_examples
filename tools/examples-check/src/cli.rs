@@ -25,7 +25,7 @@ enum Command {
     Deps,
     /// Report each package behind its registry's newest release; never edits.
     Outdated {
-        /// A TOML file of base URLs: npm, go, packagist.
+        /// A TOML file of base URLs: npm, go, packagist, crates.
         #[arg(long)]
         registry_urls: PathBuf,
     },

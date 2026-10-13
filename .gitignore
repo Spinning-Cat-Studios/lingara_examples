@@ -1,6 +1,8 @@
 target/
 node_modules/
 build/
+.gradle/
+.kotlin/
 dist/
 vendor/
 .DS_Store

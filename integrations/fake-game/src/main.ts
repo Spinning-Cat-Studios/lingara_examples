@@ -1,10 +1,11 @@
 // A headless fake game: it takes the feed's horizon cursor, tells Lingara the
 // world changed with `generate: true`, and waits for that plan's
 // `lesson_plan.ready` (or `.failed`) by the feed, or by the tail with
-// `--tail`. One line per step. `--receive <port>` runs the webhook receiver
+// `--tail`. One line per step. `--require-event` fails a plan served from the
+// pool instead of accepting it. `--receive <port>` runs the webhook receiver
 // instead (receiver.ts).
 //
-//   npm start -- --scene "A night market after rain" --source-lang en --target-lang zh --level 2 [--tail]
+//   npm start -- --scene "A night market after rain" --source-lang en --target-lang zh --level 2 [--tail] [--require-event]
 //   npm start -- --receive 8787
 
 import { parseArgs } from "node:util";
@@ -41,9 +42,16 @@ function planOutcome(event: Event, planId: string): "ready" | "failed" | undefin
 /**
  * The game side. The cursor is taken **before** `sendEvent`, so a
  * `lesson_plan.*` that fires between the send and the first read is never
- * missed. Returns the process exit code.
+ * missed. Returns the process exit code. `requireEvent` turns a plan served
+ * from the pool into a failure rather than a success.
  */
-export async function runGame(client: Lingara, scene: Scene, log: Log, tail = false): Promise<number> {
+export async function runGame(
+  client: Lingara,
+  scene: Scene,
+  log: Log,
+  tail = false,
+  requireEvent = false,
+): Promise<number> {
   const horizon = client.events({ start: "latest" });
   for await (const event of horizon) log(`feed: skipping ${event.type} ${event.id}`);
   const cursor = horizon.cursor;
@@ -66,8 +74,21 @@ export async function runGame(client: Lingara, scene: Scene, log: Log, tail = fa
     log(`no plan started: ${reaction?.code ?? reaction?.status ?? "generate was off"}`);
     return 1;
   }
+  // `--require-event` is the live job's mode: it exists to see generation and
+  // the event that follows it, so anything already finished is a failure.
+  if (requireEvent && reaction.plan_status !== "generating") {
+    log(`plan ${reaction.plan_id} was served from the pool (${reaction.plan_status}); --require-event wants a generation`);
+    return 1;
+  }
+  // A plan served from the pool is already complete: it is readable now and no
+  // event follows, so there is nothing to wait for — and nothing went wrong.
+  // Lingara matches scenes by meaning, so even a reworded scene can land here.
+  if (reaction.plan_status === "complete") {
+    log(`plan ${reaction.plan_id} was served from the pool (complete), no event promised`);
+    return 0;
+  }
   if (reaction.plan_status !== "generating") {
-    log(`plan ${reaction.plan_id} was served from the pool (${reaction.plan_status}), no event promised`);
+    log(`plan ${reaction.plan_id} is ${reaction.plan_status}, no event promised`);
     return 1;
   }
   const planId = reaction.plan_id;
@@ -136,6 +157,7 @@ async function main(): Promise<number> {
       "target-lang": { type: "string", default: "zh" },
       level: { type: "string", default: "2" },
       tail: { type: "boolean", default: false },
+      "require-event": { type: "boolean", default: false },
       receive: { type: "string" },
     },
   });
@@ -150,7 +172,7 @@ async function main(): Promise<number> {
     targetLang: values["target-lang"],
     level: Number(values.level),
   };
-  return runGame(clientFromEnv(), scene, console.log, values.tail);
+  return runGame(clientFromEnv(), scene, console.log, values.tail, values["require-event"]);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

@@ -1,0 +1,33 @@
+[package]
+name = "night-market-server"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "MIT"
+publish = false
+description = "The Night Market's server half: mints each player's Lingara token, and turns a practice result into a lantern"
+
+[[bin]]
+name = "night-market-server"
+path = "src/main.rs"
+
+# Its own workspace and its own lock (ADR 13.10.26h D1): bevy_lingara pins
+# lingara-embed exactly, so the game and the server bump it in separate PRs.
+[workspace]
+
+# Exact, from crates.io. lingara-embed's `server` feature is the Rust server
+# kit; `lingara` is named directly for its client builder and webhook verifier.
+[dependencies]
+axum = "=0.8.9"
+lingara = "=0.2.0-alpha.1"
+lingara-embed = { version = "=0.1.0-alpha.7", features = ["server"] }
+tokio = { version = "=1.53.2", features = ["macros", "rt-multi-thread", "net"] }
+
+# The offline test: an in-process stub of Lingara, and a webhook signed the
+# way Lingara signs one (Standard Webhooks, HMAC-SHA256).
+[dev-dependencies]
+base64 = "=0.22.1"
+hmac = "=0.12.1"
+serde_json = "=1.0.154"
+sha2 = "=0.10.9"
+tower = { version = "=0.5.3", features = ["util"] }

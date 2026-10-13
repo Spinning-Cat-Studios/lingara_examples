@@ -13,8 +13,8 @@
     "test": "node --test test/*.test.ts"
   },
   "dependencies": {
-    "@lingara/api": "0.1.0-alpha.10",
-    "@lingara/apps": "0.1.0-alpha.4"
+    "@lingara/api": "0.1.0-alpha.13",
+    "@lingara/apps": "0.1.0-alpha.6"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

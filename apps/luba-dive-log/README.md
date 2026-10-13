@@ -50,19 +50,30 @@ delivery counts once; this one counts it twice.
 
 ## Running it end to end
 
-You need an OAuth client on your Lingara account with `lesson_plans:read`, a
-plan you generated in that account (the phrasebook), and an account with
-apps enabled to install it from.
+You need:
 
-1. **Expose the app.** Any public HTTPS endpoint works. A Cloudflare quick
-   tunnel needs no account:
+- an OAuth client on your Lingara account with `lesson_plans:read`, and a
+  plan you generated in that account (the phrasebook);
+- a second account to install the app from. Apps are in preview: the Apps
+  page appears only on accounts that have them;
+- while the app runs on your own machine, a tunnel that gives it a public
+  HTTPS address. This walk uses Cloudflare's (`brew install cloudflared`, or
+  see Cloudflare's downloads page), but any tunnel works.
+
+1. **Expose the app.** Lingara calls your app over public HTTPS, so a port on
+   your laptop needs a tunnel. Deployed at your own HTTPS host, it needs none:
+   use that host in step 2 instead. A Cloudflare quick tunnel needs no
+   account:
 
    ```sh
    cloudflared tunnel --url http://localhost:8787
    ```
 
-   A quick tunnel's URL changes on every run, so the manifest has to be
-   uploaded again each time. A stable listing needs a stable host.
+   It prints the tunnel's `https://….trycloudflare.com` address. Start it
+   before step 2, because the manifest records that address, and leave it
+   running for the rest of the walk. A quick tunnel's URL changes on every
+   run, so the manifest has to be built and uploaded again each time. A stable
+   listing needs a stable host.
 
 2. **Build the manifest.** It needs no secret:
 

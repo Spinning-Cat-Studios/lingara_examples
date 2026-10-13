@@ -19,6 +19,10 @@ pub struct RegistryUrls {
     pub npm: String,
     pub go: String,
     pub packagist: String,
+    /// crates.io's sparse index (ADR 13.10.26h D5).
+    pub crates: String,
+    /// Maven Central's repository root (ADR 13.10.26i D5).
+    pub maven: String,
 }
 
 pub fn load_urls(path: &Path) -> Result<RegistryUrls, String> {
@@ -35,7 +39,11 @@ pub fn run(root: &Path, urls: &RegistryUrls, out: &mut dyn Write) -> Result<(), 
             let key = (pkg.registry, pkg.name.clone());
             if !newest.contains_key(&key) {
                 let versions = fetch_versions(urls, pkg.registry, &pkg.name)?;
-                newest.insert(key.clone(), newest_of(&versions));
+                let (found, skipped) = newest_of(&versions);
+                for version in skipped {
+                    eprintln!("{} {}: skipped {version}, which is not SemVer", pkg.registry.as_str(), pkg.name);
+                }
+                newest.insert(key.clone(), found);
             }
             if let Some(n) = newest[&key].as_deref().filter(|n| is_behind(&pkg.version, n)) {
                 writeln!(out, "{} {} {} → {}", row.path, pkg.name, pkg.version, n).map_err(|e| e.to_string())?;
@@ -63,7 +71,48 @@ fn fetch_versions(urls: &RegistryUrls, registry: Registry, name: &str) -> Result
             let releases = doc.get("packages").and_then(|p| p.get(name)).and_then(Value::as_array);
             Ok(releases.into_iter().flatten().filter_map(|r| r.get("version")?.as_str().map(String::from)).collect())
         }
+        Registry::Crates => {
+            let body = get(&format!("{}/{}", base(&urls.crates), sparse_path(name)))?;
+            body.lines().map(str::trim).filter(|l| !l.is_empty()).map(unyanked).filter_map(Result::transpose).collect()
+        }
+        Registry::Maven => {
+            let path = maven_metadata_path(name).ok_or_else(|| format!("{name} is not group:artifact"))?;
+            Ok(metadata_versions(&get(&format!("{}/{path}", base(&urls.maven)))?))
+        }
     }
+}
+
+/// `com.getlingara:lingara-embed-kotlin` →
+/// `com/getlingara/lingara-embed-kotlin/maven-metadata.xml`.
+pub(crate) fn maven_metadata_path(name: &str) -> Option<String> {
+    let (group, artifact) = name.split_once(':')?;
+    Some(format!("{}/{artifact}/maven-metadata.xml", group.replace('.', "/")))
+}
+
+/// Every `<version>` in a `maven-metadata.xml`. `<latest>` and `<release>`
+/// are ignored, as npm's dist-tags are: newest is the reader's decision.
+fn metadata_versions(xml: &str) -> Vec<String> {
+    xml.split("<version>").skip(1).filter_map(|rest| rest.split_once("</version>")).map(|(v, _)| v.trim().to_string()).collect()
+}
+
+/// The sparse index's path for a crate: `1/`, `2/`, `3/<c1>/` or
+/// `<c1c2>/<c3c4>/` by the name's length, then the lower-cased name.
+pub(crate) fn sparse_path(name: &str) -> String {
+    let name = name.to_ascii_lowercase();
+    match name.len() {
+        1 => format!("1/{name}"),
+        2 => format!("2/{name}"),
+        3 => format!("3/{}/{name}", &name[..1]),
+        _ => format!("{}/{}/{name}", &name[..2], &name[2..4]),
+    }
+}
+
+/// One index line's `vers`, or `None` when it is yanked.
+fn unyanked(line: &str) -> Result<Option<String>, String> {
+    let entry = parse_json(line)?;
+    let yanked = entry.get("yanked").and_then(Value::as_bool).unwrap_or(false);
+    let version = entry.get("vers").and_then(Value::as_str).ok_or("a crates index line has no `vers`")?;
+    Ok((!yanked).then(|| version.to_string()))
 }
 
 fn base(url: &str) -> &str {
@@ -93,8 +142,20 @@ fn semver_of(version: &str) -> Option<Version> {
     Version::parse(version.strip_prefix('v').unwrap_or(version)).ok()
 }
 
-fn newest_of(versions: &[String]) -> Option<String> {
-    versions.iter().filter_map(|v| semver_of(v).map(|s| (s, v))).max_by(|a, b| a.0.cmp(&b.0)).map(|(_, v)| v.clone())
+/// The newest SemVer release, and every version skipped because it is not
+/// SemVer: `run` names those on stderr, so a skip cannot hide a release
+/// (ADR 13.10.26i D5).
+pub(crate) fn newest_of(versions: &[String]) -> (Option<String>, Vec<String>) {
+    let mut skipped = Vec::new();
+    let parsed = versions.iter().filter_map(|v| match semver_of(v) {
+        Some(s) => Some((s, v)),
+        None => {
+            skipped.push(v.clone());
+            None
+        }
+    });
+    let newest = parsed.max_by(|a, b| a.0.cmp(&b.0)).map(|(_, v)| v.clone());
+    (newest, skipped)
 }
 
 fn is_behind(pinned: &str, newest: &str) -> bool {

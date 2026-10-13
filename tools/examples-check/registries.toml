@@ -3,3 +3,7 @@
 npm       = "https://registry.npmjs.org"
 go        = "https://proxy.golang.org"
 packagist = "https://repo.packagist.org"
+# crates.io's sparse index (ADR 13.10.26h D5).
+crates    = "https://index.crates.io/"
+# Maven Central, read through each artefact's maven-metadata.xml (ADR 13.10.26i D5).
+maven     = "https://repo1.maven.org/maven2/"

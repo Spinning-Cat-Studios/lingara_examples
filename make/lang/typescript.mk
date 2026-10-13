@@ -5,9 +5,11 @@
 # `live-example-typescript` is reached only through `make live-example`
 # (ADR 4.10.26c D7). It runs the example once against production with the
 # live job's credentials, bounded by `timeout 300` (coreutils' `gtimeout` on
-# macOS: TIMEOUT=gtimeout). The scene carries the date and the run id, because
-# a fixed scene is served from the pool from its second day and the game then
-# exits 1 by design.
+# macOS: TIMEOUT=gtimeout). It passes `--require-event`, so a plan served from
+# the pool exits 1: the job exists to see a generation and its
+# `lesson_plan.ready`. The scene is fixed, because the server bypasses the pool
+# for the live job's account (Backend ADR 6.10.26k), and a scene salt never
+# kept the pool away — it matches by meaning.
 
 TIMEOUT ?= timeout
 
@@ -25,4 +27,4 @@ lock-example-typescript:
 live-example-typescript: build-example-typescript
 	@test -n "$$LINGARA_EXAMPLES_CLIENT_ID" && test -n "$$LINGARA_EXAMPLES_CLIENT_SECRET" || { echo "✗ set LINGARA_EXAMPLES_CLIENT_ID and LINGARA_EXAMPLES_CLIENT_SECRET" >&2; exit 2; }
 	cd "$(DIR)" && LINGARA_CLIENT_ID="$$LINGARA_EXAMPLES_CLIENT_ID" LINGARA_CLIENT_SECRET="$$LINGARA_EXAMPLES_CLIENT_SECRET" \
-	  $(TIMEOUT) 300 npm start -- --scene "A night market after rain, $$(date -u +%F) run $${GITHUB_RUN_ID:-local}"
+	  $(TIMEOUT) 300 npm start -- --scene "A night market after rain" --require-event

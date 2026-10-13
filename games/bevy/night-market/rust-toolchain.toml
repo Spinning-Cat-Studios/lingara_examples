@@ -1,0 +1,6 @@
+# The channel CI and a cloner build both halves with (ADR 13.10.26h D1): the
+# stable release current when the example landed, above the kits' MSRV
+# (bevy_lingara's 1.97.1, which is Bevy 0.20's own).
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"

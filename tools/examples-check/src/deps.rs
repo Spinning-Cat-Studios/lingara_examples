@@ -4,8 +4,10 @@
 //!
 //! A later registry adds its reader here (D3).
 
+mod cargo;
 mod composer;
 mod go;
+mod gradle;
 mod npm;
 
 use crate::index::{self, Example, Finding, Registry};
@@ -21,6 +23,8 @@ pub enum Ecosystem {
     Npm,
     Go,
     Composer,
+    Cargo,
+    Gradle,
 }
 
 impl Ecosystem {
@@ -29,6 +33,8 @@ impl Ecosystem {
             "typescript" | "javascript" => Some(Self::Npm),
             "go" => Some(Self::Go),
             "php" => Some(Self::Composer),
+            "rust" => Some(Self::Cargo),
+            "kotlin" => Some(Self::Gradle),
             _ => None,
         }
     }
@@ -38,14 +44,23 @@ impl Ecosystem {
             Self::Npm => Registry::Npm,
             Self::Go => Registry::Go,
             Self::Composer => Registry::Packagist,
+            Self::Cargo => Registry::Crates,
+            Self::Gradle => Registry::Maven,
         }
     }
 
-    pub fn manifest(self) -> &'static str {
+    /// Every manifest of the example in `dir`, relative to it. npm, Go and
+    /// Composer have one at the example's root; a Cargo example has one per
+    /// package (ADR 13.10.26h D5), found anywhere under it outside `target/`.
+    /// A Gradle example's one manifest is its version catalogue, the one file
+    /// that writes a version (ADR 13.10.26i D5).
+    pub fn manifests(self, dir: &Path) -> Vec<String> {
         match self {
-            Self::Npm => "package.json",
-            Self::Go => "go.mod",
-            Self::Composer => "composer.json",
+            Self::Npm => vec!["package.json".into()],
+            Self::Go => vec!["go.mod".into()],
+            Self::Composer => vec!["composer.json".into()],
+            Self::Cargo => cargo::manifests(dir),
+            Self::Gradle => vec![gradle::CATALOGUE.into()],
         }
     }
 }
@@ -73,6 +88,8 @@ fn check_row(root: &Path, row: &Example) -> Vec<Finding> {
         Ecosystem::Npm => npm::check(&dir, &pins),
         Ecosystem::Go => go::check(root, &dir, &pins),
         Ecosystem::Composer => composer::check(&dir, &pins),
+        Ecosystem::Cargo => cargo::check(&dir, &pins),
+        Ecosystem::Gradle => gradle::check(&dir, &pins),
     };
     out.extend(found.into_iter().map(|f| Finding::new(format!("{}/{}", row.path, f.path), f.message)));
     out
@@ -85,6 +102,17 @@ fn row_pins(row: &Example, registry: Registry) -> Pins {
 /// The manifest names exactly the row's Lingara packages, each at the row's
 /// exact version — never a range.
 fn compare_pins(file: &str, declared: &Pins, row: &Pins, is_lingara: fn(&str) -> bool) -> Vec<Finding> {
+    let mut out = compare_declared(file, declared, row, is_lingara);
+    for name in row.keys().filter(|n| !declared.contains_key(*n)) {
+        out.push(Finding::new(file, format!("{name} is in examples.toml but not in {file}")));
+    }
+    out
+}
+
+/// Each Lingara package `file` declares is in the row, at the row's version.
+/// `compare_pins` without the reverse check, for an ecosystem whose example
+/// holds the row's packages across several manifests (ADR 13.10.26h D5).
+fn compare_declared(file: &str, declared: &Pins, row: &Pins, is_lingara: fn(&str) -> bool) -> Vec<Finding> {
     let mut out = Vec::new();
     for (name, spec) in declared.iter().filter(|(n, _)| is_lingara(n)) {
         match row.get(name) {
@@ -92,9 +120,6 @@ fn compare_pins(file: &str, declared: &Pins, row: &Pins, is_lingara: fn(&str) ->
             Some(v) if v != spec => out.push(Finding::new(file, format!("{name} is `{spec}`; examples.toml pins exactly `{v}`"))),
             Some(_) => {}
         }
-    }
-    for name in row.keys().filter(|n| !declared.contains_key(*n)) {
-        out.push(Finding::new(file, format!("{name} is in examples.toml but not in {file}")));
     }
     out
 }

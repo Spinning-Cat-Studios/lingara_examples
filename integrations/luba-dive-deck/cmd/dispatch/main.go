@@ -19,7 +19,7 @@ import (
 	"github.com/Spinning-Cat-Studios/lingara_examples/integrations/luba-dive-deck/internal/env"
 )
 
-// dives maps each destination to the language its divers will hear.
+// dives maps each destination to the language its passengers will hear.
 var dives = map[string]string{"okinawa": "ja", "jeju": "ko", "cozumel": "es"}
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 func parseDive(args []string) (string, lingara.VocabRequest, error) {
 	flags := flag.NewFlagSet("dispatch", flag.ContinueOnError)
 	dive := flags.String("dive", "okinawa", "the destination: okinawa, jeju or cozumel")
-	source := flags.String("source-lang", "en", "the divers' own language")
+	source := flags.String("source-lang", "en", "the passengers' own language")
 	level := flags.Uint("level", 2, "the level, 1 to 6")
 	count := flags.Uint("count", 5, "how many words")
 	if err := flags.Parse(args); err != nil {

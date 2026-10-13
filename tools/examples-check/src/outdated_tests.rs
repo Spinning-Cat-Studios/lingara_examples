@@ -73,7 +73,7 @@ fn routes() -> Vec<(&'static str, String)> {
 #[test]
 fn reports_behind_and_writes_nothing() {
     let base = serve(routes());
-    let urls = RegistryUrls { npm: base.clone(), go: format!("{base}/"), packagist: base };
+    let urls = RegistryUrls { npm: base.clone(), go: format!("{base}/"), packagist: base.clone(), crates: base.clone(), maven: base };
     let dir = tree(&[("examples.toml", INDEX)]);
     let before = snapshot(dir.path());
 
@@ -94,4 +94,77 @@ fn reports_behind_and_writes_nothing() {
 fn the_shipped_registry_file_parses() {
     let urls = outdated::load_urls(std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/registries.toml"))).expect("parses");
     assert_eq!(urls.npm, "https://registry.npmjs.org");
+    assert_eq!(urls.crates, "https://index.crates.io/");
+    assert_eq!(urls.maven, "https://repo1.maven.org/maven2/");
+}
+
+const CRATES_INDEX: &str = r#"schema = 1
+
+[[example]]
+path = "games/bevy/g"
+section = "games"
+language = "rust"
+title = "Bevy"
+packages = [
+  { registry = "crates", name = "bevy_lingara", version = "0.1.0-alpha.6" },
+  { registry = "crates", name = "lingara", version = "0.2.0-alpha.1" },
+]
+"#;
+
+/// 13.10.26h AC8 — the sparse-index path for 1-, 2-, 3- and 4+-character
+/// names (lower-cased), and the newest by SemVer with pre-releases included
+/// and yanked releases excluded.
+#[test]
+fn crates_takes_the_newest_unyanked() {
+    assert_eq!(outdated::sparse_path("a"), "1/a");
+    assert_eq!(outdated::sparse_path("ab"), "2/ab");
+    assert_eq!(outdated::sparse_path("abc"), "3/a/abc");
+    assert_eq!(outdated::sparse_path("Bevy_Lingara"), "be/vy/bevy_lingara");
+
+    // alpha.10 is yanked; alpha.9 sorts after alpha.10 as a string, never by SemVer.
+    let bevy = [("0.1.0-alpha.6", false), ("0.1.0-alpha.9", false), ("0.1.0-alpha.7", false), ("0.1.0-alpha.10", true)]
+        .map(|(v, y)| format!(r#"{{"name":"bevy_lingara","vers":"{v}","deps":[],"yanked":{y}}}"#))
+        .join("\n");
+    let lingara = r#"{"name":"lingara","vers":"0.2.0-alpha.1","yanked":false}"#.to_string();
+    let base = serve(vec![("/be/vy/bevy_lingara", bevy), ("/li/ng/lingara", lingara)]);
+    let urls = RegistryUrls { npm: base.clone(), go: base.clone(), packagist: base.clone(), crates: format!("{base}/"), maven: base };
+    let dir = tree(&[("examples.toml", CRATES_INDEX)]);
+
+    let mut out = Vec::new();
+    outdated::run(dir.path(), &urls, &mut out).expect("outdated");
+    assert_eq!(String::from_utf8(out).expect("utf-8"), "games/bevy/g bevy_lingara 0.1.0-alpha.6 → 0.1.0-alpha.9\n");
+}
+
+const MAVEN_INDEX: &str = r#"schema = 1
+
+[[example]]
+path = "games/jvm/g"
+section = "games"
+language = "kotlin"
+title = "JVM"
+packages = [{ registry = "maven", name = "com.getlingara:lingara-embed-kotlin", version = "0.1.0-alpha.6" }]
+"#;
+
+/// 13.10.26i AC8 — the `maven-metadata.xml` path for `group:artifact`, the
+/// newest `<version>` by SemVer with pre-releases included (never
+/// `<latest>`), and every non-SemVer version named as skipped.
+#[test]
+fn maven_takes_the_newest_semver() {
+    assert_eq!(outdated::maven_metadata_path("com.getlingara:lingara-embed-kotlin").as_deref(), Some("com/getlingara/lingara-embed-kotlin/maven-metadata.xml"));
+    assert_eq!(outdated::maven_metadata_path("no-colon"), None);
+
+    // `<latest>` names an older version; alpha.9 sorts after alpha.10 as a string, never by SemVer.
+    let metadata = "<metadata><groupId>com.getlingara</groupId><versioning><latest>0.1.0-alpha.7</latest><versions>\
+        <version>0.1.0-alpha.6</version><version>0.1.0-alpha.10</version><version>0.1.0-alpha.9</version><version>0.1-SNAPSHOT</version>\
+        </versions></versioning></metadata>";
+    let base = serve(vec![("/com/getlingara/lingara-embed-kotlin/maven-metadata.xml", metadata.to_string())]);
+    let urls = RegistryUrls { npm: base.clone(), go: base.clone(), packagist: base.clone(), crates: base.clone(), maven: format!("{base}/") };
+    let dir = tree(&[("examples.toml", MAVEN_INDEX)]);
+
+    let mut out = Vec::new();
+    outdated::run(dir.path(), &urls, &mut out).expect("outdated");
+    assert_eq!(String::from_utf8(out).expect("utf-8"), "games/jvm/g com.getlingara:lingara-embed-kotlin 0.1.0-alpha.6 → 0.1.0-alpha.10\n");
+
+    let versions = ["0.1.0-alpha.9", "0.1-SNAPSHOT", "0.1.0-alpha.10"].map(String::from);
+    assert_eq!(outdated::newest_of(&versions), (Some("0.1.0-alpha.10".to_string()), vec!["0.1-SNAPSHOT".to_string()]), "the skip is named, for stderr");
 }

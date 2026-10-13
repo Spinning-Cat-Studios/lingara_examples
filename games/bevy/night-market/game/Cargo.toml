@@ -1,0 +1,19 @@
+[package]
+name = "night-market"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "MIT"
+publish = false
+description = "The Night Market, in Bevy: walk a street, talk to two stall-keepers at your level, practise, earn a lantern"
+
+# Its own workspace, so Cargo stops here instead of walking up to the
+# repository's (ADR 13.10.26h D1), and the directory can be copied out whole.
+[workspace]
+
+# Exact, from crates.io. No direct lingara-embed: bevy_lingara pins it and
+# re-exports it, so the game names its types through `bevy_lingara::lingara_embed`.
+[dependencies]
+bevy = "=0.20.0"
+bevy_lingara = "=0.1.0-alpha.7"
+ureq = "=3.4.2"

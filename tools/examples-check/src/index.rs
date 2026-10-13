@@ -8,7 +8,7 @@ use std::path::Path;
 
 pub const INDEX_FILE: &str = "examples.toml";
 const SECTIONS: [&str; 3] = ["integrations", "apps", "games"];
-const README: &str = "README.md";
+pub const README: &str = "README.md";
 const README_START: &str = "<!-- examples:start -->";
 const README_END: &str = "<!-- examples:end -->";
 
@@ -53,6 +53,8 @@ pub enum Registry {
     Npm,
     Go,
     Packagist,
+    Crates,
+    Maven,
 }
 
 impl Registry {
@@ -61,6 +63,8 @@ impl Registry {
             "npm" => Some(Self::Npm),
             "go" => Some(Self::Go),
             "packagist" => Some(Self::Packagist),
+            "crates" => Some(Self::Crates),
+            "maven" => Some(Self::Maven),
             _ => None,
         }
     }
@@ -70,6 +74,8 @@ impl Registry {
             Self::Npm => "npm",
             Self::Go => "go",
             Self::Packagist => "packagist",
+            Self::Crates => "crates",
+            Self::Maven => "maven",
         }
     }
 }
@@ -193,4 +199,12 @@ fn readme_table(text: &str) -> Option<&str> {
     let start = text.find(README_START)? + README_START.len();
     let end = text[start..].find(README_END)? + start;
     Some(&text[start..end])
+}
+
+/// `text` with the table between the markers replaced by `table`, or `None`
+/// when the markers are missing.
+pub(crate) fn splice_readme_table(text: &str, table: &str) -> Option<String> {
+    let start = text.find(README_START)? + README_START.len();
+    let end = text[start..].find(README_END)? + start;
+    Some(format!("{}\n{table}{}", &text[..start], &text[end..]))
 }
