@@ -15,5 +15,5 @@ description = "The Night Market, in Bevy: walk a street, talk to two stall-keepe
 # re-exports it, so the game names its types through `bevy_lingara::lingara_embed`.
 [dependencies]
 bevy = "=0.20.0"
-bevy_lingara = "=0.1.0-alpha.7"
+bevy_lingara = "=0.1.0-alpha.8"
 ureq = "=3.4.2"

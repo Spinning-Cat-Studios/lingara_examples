@@ -22,7 +22,7 @@ section = "integrations"
 language = "typescript"
 title = "A headless game on the event feed"
 live = true
-packages = [{ registry = "npm", name = "@lingara/api", version = "0.1.0-alpha.13" }]
+packages = [{ registry = "npm", name = "@lingara/api", version = "0.2.0-alpha.1" }]
 scopes = ["events:read", "events:write", "lesson_plans:read", "lesson_plans:write"]
 
 [[example]]
@@ -31,7 +31,7 @@ section = "integrations"
 language = "go"
 title = "Luba's Dive Deck: two processes, one scope each"
 live = true
-packages = [{ registry = "go", name = "github.com/Spinning-Cat-Studios/lingara_api_clients/go", version = "v0.1.0-alpha.13" }]
+packages = [{ registry = "go", name = "github.com/Spinning-Cat-Studios/lingara_api_clients/go", version = "v0.2.0-alpha.1" }]
 scopes = ["vocab:generate", "usage:read"]
 
 [[example]]
@@ -40,7 +40,7 @@ section = "integrations"
 language = "php"
 title = "Farducks' Batter Rewards: a plan while the order fries"
 live = true
-packages = [{ registry = "packagist", name = "spinningcatstudios/lingara", version = "v0.1.0-alpha.13" }]
+packages = [{ registry = "packagist", name = "spinningcatstudios/lingara", version = "v0.2.0-alpha.1" }]
 scopes = ["lesson_plans:write", "lesson_plans:read"]
 
 [[example]]
@@ -50,8 +50,8 @@ language = "typescript"
 title = "Luba's Dive Log: an app on the shelf, end to end"
 live = false
 packages = [
-  { registry = "npm", name = "@lingara/apps", version = "0.1.0-alpha.6" },
-  { registry = "npm", name = "@lingara/api", version = "0.1.0-alpha.13" },
+  { registry = "npm", name = "@lingara/apps", version = "0.1.0-alpha.7" },
+  { registry = "npm", name = "@lingara/api", version = "0.2.0-alpha.1" },
 ]
 scopes = ["lesson_plans:read"]   # the owner's client, for the phrasebook read; the manifest itself declares none
 
@@ -62,8 +62,8 @@ language = "rust"
 title = "The Night Market, in Bevy, with its Rust server"
 live = false
 packages = [
-  { registry = "crates", name = "bevy_lingara", version = "0.1.0-alpha.7" },
-  { registry = "crates", name = "lingara-embed", version = "0.1.0-alpha.7" },
+  { registry = "crates", name = "bevy_lingara", version = "0.1.0-alpha.8" },
+  { registry = "crates", name = "lingara-embed", version = "0.1.0-alpha.8" },
   { registry = "crates", name = "lingara", version = "0.2.0-alpha.1" },
 ]
 scopes = ["embed:mint"]
@@ -75,9 +75,21 @@ language = "kotlin"
 title = "The Night Market, in libGDX, with its Kotlin server"
 live = false
 packages = [
-  { registry = "maven", name = "com.getlingara:lingara-embed-kotlin", version = "0.1.0-alpha.7" },
-  { registry = "maven", name = "com.getlingara:lingara-embed-natives-desktop", version = "0.1.0-alpha.7" },
-  { registry = "maven", name = "com.getlingara:lingara-embed-server-kotlin", version = "0.1.0-alpha.7" },
+  { registry = "maven", name = "com.getlingara:lingara-embed-kotlin", version = "0.1.0-alpha.8" },
+  { registry = "maven", name = "com.getlingara:lingara-embed-natives-desktop", version = "0.1.0-alpha.8" },
+  { registry = "maven", name = "com.getlingara:lingara-embed-server-kotlin", version = "0.1.0-alpha.8" },
   { registry = "maven", name = "com.getlingara:lingara-kotlin", version = "0.2.0-alpha.1" },
 ]
 scopes = ["embed:mint"]
+
+[[example]]
+path = "websites/rust/night-market"
+section = "websites"
+language = "rust"
+title = "The Night Market, as a website with the Lingara widget, on the Rust server kit"
+live = false
+packages = [
+  { registry = "crates", name = "lingara-embed", version = "0.1.0-alpha.7" },
+  { registry = "crates", name = "lingara", version = "0.2.0-alpha.1" },
+]
+scopes = ["embed:mint", "embed:play", "events:read", "events:write", "lesson_plans:read", "lesson_plans:write"]

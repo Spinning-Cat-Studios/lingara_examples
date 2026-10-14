@@ -1,5 +1,6 @@
-# Rust examples (ADR 13.10.26h D6). A Rust example is two Cargo workspaces of
-# its own, `game/` and `server/`, each with its own Cargo.lock, so every target
+# Rust examples (ADR 13.10.26h D6). A Rust example is a Cargo workspace of its
+# own for whichever of `game/` and `server/` exist (a website has only a
+# server, ADR 14.10.26p D6), each with its own Cargo.lock, so every target
 # runs once per workspace in that directory, where the example's
 # rust-toolchain.toml picks the channel. Never `-p`: the leak scan reads every
 # `cargo … -p <crate>` in a shipped make file as a claim that the crate is a
@@ -8,7 +9,8 @@
 # No `live-example-rust`: a game needs a player at the keyboard, so a Rust row
 # is `live = false` (roadmap 13.10.26g D3).
 
-RUST_HALVES := game server
+# Evaluated per target, so $(DIR) is the example's.
+RUST_HALVES = $(notdir $(wildcard $(DIR)/game $(DIR)/server))
 
 .PHONY: build-example-rust test-example-rust lock-example-rust
 

@@ -1,0 +1,5 @@
+# The Bevy Night Market's channel (ADR 14.10.26p D2), so the two examples
+# build on one Rust release.
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"

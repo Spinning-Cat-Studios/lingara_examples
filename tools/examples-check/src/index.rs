@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 pub const INDEX_FILE: &str = "examples.toml";
-const SECTIONS: [&str; 3] = ["integrations", "apps", "games"];
+const SECTIONS: [&str; 4] = ["integrations", "apps", "games", "websites"];
 pub const README: &str = "README.md";
 const README_START: &str = "<!-- examples:start -->";
 const README_END: &str = "<!-- examples:end -->";
@@ -131,7 +131,7 @@ fn check_rows(root: &Path, index: &Index) -> Vec<Finding> {
         }
         let first = row.path.split('/').next().unwrap_or_default();
         if !SECTIONS.contains(&row.section.as_str()) {
-            out.push(Finding::new(&row.path, format!("section `{}` is not integrations, apps or games", row.section)));
+            out.push(Finding::new(&row.path, format!("section `{}` is not integrations, apps, games or websites", row.section)));
         } else if row.section != first {
             out.push(Finding::new(&row.path, format!("section `{}` disagrees with the path", row.section)));
         }
@@ -161,11 +161,12 @@ fn check_unindexed(root: &Path, index: &Index) -> Vec<Finding> {
         .collect()
 }
 
-/// A direct child of a section, or, for `games/`, of an engine.
+/// A direct child of a section, or, for `games/` and `websites/`, of an
+/// engine or a stack.
 fn example_dirs(root: &Path) -> Vec<String> {
     let mut dirs: Vec<String> = ["integrations", "apps"].iter().flat_map(|s| child_dirs(root, s)).collect();
-    for engine in child_dirs(root, "games") {
-        dirs.extend(child_dirs(root, &engine));
+    for group in ["games", "websites"].iter().flat_map(|s| child_dirs(root, s)) {
+        dirs.extend(child_dirs(root, &group));
     }
     dirs
 }

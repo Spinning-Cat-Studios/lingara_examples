@@ -5,7 +5,7 @@
 com.badlogicgames.gdx:gdx-freetype:1.14.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.badlogicgames.gdx:gdx-jnigen-loader:2.5.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.badlogicgames.gdx:gdx:1.14.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-com.getlingara:lingara-embed-kotlin:0.1.0-alpha.7=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+com.getlingara:lingara-embed-kotlin:0.1.0-alpha.8=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.apiguardian:apiguardian-api:1.1.2=testCompileClasspath
 org.jetbrains.kotlin:kotlin-build-tools-api:2.4.0=kotlinAbiValidationCompatClasspath
 org.jetbrains.kotlin:kotlin-build-tools-api:2.4.10=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath,kotlinKlibCommonizerClasspath

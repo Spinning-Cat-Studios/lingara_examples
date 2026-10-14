@@ -6,9 +6,9 @@
 # at the same version (the kit refuses natives of another version at start).
 
 [versions]
-lingara-embed-kotlin = "0.1.0-alpha.7"
-lingara-embed-natives-desktop = "0.1.0-alpha.7"
-lingara-embed-server-kotlin = "0.1.0-alpha.7"
+lingara-embed-kotlin = "0.1.0-alpha.8"
+lingara-embed-natives-desktop = "0.1.0-alpha.8"
+lingara-embed-server-kotlin = "0.1.0-alpha.8"
 lingara-kotlin = "0.2.0-alpha.1"
 kotlin = "2.4.10"
 kotlinx-coroutines = "1.10.2"

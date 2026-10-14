@@ -78,6 +78,25 @@ fn every_index_gap_is_a_finding() {
     assert_one(&readme, "README.md: the examples table differs");
 }
 
+/// 14.10.26p AC1 — `websites` is a section: a row under it passes, an
+/// unindexed `websites/<stack>/<example>` is found, and a section outside
+/// the four is refused.
+#[test]
+fn websites_is_a_section() {
+    let site = ROW.replace("integrations/fake-game", "websites/rust/night-market").replace("\"integrations\"", "\"websites\"");
+    let accepted = findings_after(|r| {
+        with_index(r, &site);
+        write(r, "websites/rust/night-market/README.md", "x");
+    });
+    assert!(accepted.iter().all(|f| !f.contains("websites/rust/night-market:")), "a websites row passes: {accepted:?}");
+
+    let unindexed = findings_after(|r| write(r, "websites/rust/orphan/README.md", "x"));
+    assert_one(&unindexed, "websites/rust/orphan: an example directory with no row");
+
+    let unknown = findings_after(|r| with_index(r, &ROW.replace("section  = \"integrations\"", "section  = \"blogs\"")));
+    assert_one(&unknown, "section `blogs` is not integrations, apps, games or websites");
+}
+
 /// 4.10.26b AC5 — `list`, `list --json`, `list --markdown` and `lang`.
 #[test]
 fn list_prints_every_row_in_order() {

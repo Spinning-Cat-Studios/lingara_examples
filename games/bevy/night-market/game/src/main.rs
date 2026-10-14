@@ -4,7 +4,9 @@
 //! `NIGHT_MARKET_SERVER` (default `http://127.0.0.1:8787`) is the server's
 //! base URL, and `NIGHT_MARKET_PLAYER` (default `player-1`) stands in for the
 //! player's session: it is sent as `X-Night-Market-Player` on the token call
-//! and on the rewards poll. The game holds no secret.
+//! and on the rewards poll. The game holds no secret. `NIGHT_MARKET_API_URL`
+//! (default: production) is the Lingara API the game talks to; set it to the
+//! same Lingara the server's `LINGARA_BASE_URL` names.
 
 mod logic;
 mod view;
@@ -30,6 +32,12 @@ fn main() {
         .source_lang(logic::SOURCE_LANG)
         .stream_on_start(false)
         .user_agent_suffix("night-market-bevy/0.1");
+    // Unset means production. A token minted by a local Lingara is only valid
+    // against that same Lingara, so a local run points both halves at it.
+    let lingara = match std::env::var("NIGHT_MARKET_API_URL") {
+        Ok(url) if !url.is_empty() => lingara.base_url(url),
+        _ => lingara,
+    };
     let window = Window { title: "The Night Market".into(), ..default() };
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin { primary_window: Some(window), ..default() }))

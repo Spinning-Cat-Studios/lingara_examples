@@ -20,7 +20,7 @@ path = "src/main.rs"
 [dependencies]
 axum = "=0.8.9"
 lingara = "=0.2.0-alpha.1"
-lingara-embed = { version = "=0.1.0-alpha.7", features = ["server"] }
+lingara-embed = { version = "=0.1.0-alpha.8", features = ["server"] }
 tokio = { version = "=1.53.2", features = ["macros", "rt-multi-thread", "net"] }
 
 # The offline test: an in-process stub of Lingara, and a webhook signed the

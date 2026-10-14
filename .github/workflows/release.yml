@@ -81,10 +81,10 @@ jobs:
           php-version: '8.3'
           tools: composer
       # A Rust leg as in ci.yml (ADR 13.10.26h D6).
-      - if: matrix.language == 'rust'
+      - if: matrix.language == 'rust' && startsWith(matrix.path, 'games/bevy/')
         name: Free disk for a Bevy build
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-      - if: matrix.language == 'rust'
+      - if: matrix.language == 'rust' && startsWith(matrix.path, 'games/bevy/')
         name: Bevy's Linux libraries
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
       - if: matrix.language == 'rust'

@@ -1205,9 +1205,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_lingara"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "600cb330fbdd601b18555b24c22ad2bb66a5805d0571c607e479a88aa60dff53"
+checksum = "f88a3692323cb3772bd2588f102e1f16792b54d8aa0e9dc85e982fe0c52c0f36"
 dependencies = [
  "bevy",
  "lingara-embed",
@@ -3825,9 +3825,9 @@ dependencies = [
 
 [[package]]
 name = "lingara-embed"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4b80f39b5c1c8b7dc83180f33543ed8f09239beb76f27d4cdbca8477696a284"
+checksum = "b03935987dc54a2a2fc1264a21fd471e0c66327c92acb557e4af3e9014c3628e"
 dependencies = [
  "getrandom 0.4.3",
  "lingara",

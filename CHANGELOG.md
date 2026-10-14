@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.1.0-alpha.4 — 2026-10-14
+
+
+### Added
+
+### Changed
+
+### Fixed
+
+- `apps/luba-dive-log` installs one copy of `@lingara/api` again. The example pins `@lingara/api` 0.2.0-alpha.1, which `@lingara/apps` 0.1.0-alpha.6 did not accept, so npm nested a second, older copy for the kit and the kit verified signatures with a different library than the example called. `@lingara/apps` 0.1.0-alpha.7 depends on the 0.2 library, and the example now uses it.
+
+### Removed
+
+## v0.1.0-alpha.3 — 2026-10-14
+
+
+### Added
+
+- The Bevy Night Market game reads `NIGHT_MARKET_API_URL`, so it can talk to the same non-production Lingara its server mints tokens from.
+- A `websites/` section, and its first example: `websites/rust/night-market`, the Night Market as a web page with the Lingara widget, on the Rust server kit. `make site-example` serves it on a registered and an unregistered origin at once, so the widget's origin refusal can be seen beside a working practice.
+
+### Changed
+
+### Fixed
+
+### Removed
+
 ## v0.1.0-alpha.2 — 2026-10-13
 
 

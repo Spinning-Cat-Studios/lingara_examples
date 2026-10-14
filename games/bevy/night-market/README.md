@@ -86,7 +86,9 @@ Start the server first, then:
 `NIGHT_MARKET_SERVER` (default `http://127.0.0.1:8787`) is the server's
 address, and `NIGHT_MARKET_PLAYER` (default `player-1`) is the stand-in
 session the game sends. Run a second copy with another `NIGHT_MARKET_PLAYER`
-to be a second player.
+to be a second player. `NIGHT_MARKET_API_URL` (default: production) points
+the game at another Lingara; set it whenever the server's `LINGARA_BASE_URL`
+is set, because a token is only valid at the Lingara that minted it.
 
 After a practice, the game asks the server for your lantern total every five
 seconds for up to five minutes. Lingara sends the result to `/webhook`, so

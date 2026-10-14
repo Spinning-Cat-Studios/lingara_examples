@@ -13,6 +13,7 @@
 include make/config.mk
 -include $(sort $(wildcard make/lang/*.mk))
 include make/examples.mk
+include make/websites.mk
 -include make/private.mk
 
 # Staging carries its own release targets in make/staging.mk, which is copied
